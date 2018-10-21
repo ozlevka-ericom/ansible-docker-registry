@@ -1,0 +1,22 @@
+---
+version: 0.1
+log:
+  level: {{ log_level }}
+http:
+  addr: 0.0.0.0:5000
+  hostname: https://{{inventory_hostname}}
+  tls:
+    certificate: /pki/cert.pem
+    key: /pki/key.pem
+  secret: {{docker_registry_http_secret|to_json}}
+storage:
+  filesystem:
+    rootdirectory: {{ storage_root_directory }}
+    maxthreads: 100
+  cache:
+    blobdescriptor: inmemory
+  delete:
+    enabled: {{docker_registry_delete_mode|bool}}
+  maintenance:
+    readonly:
+      enabled: {{docker_registry_readonly_mode|bool}}
