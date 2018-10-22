@@ -1,51 +1,33 @@
 ---
-- name: mkdir -p /etc/docker-registry/auth
-  become: yes
-  become_user: root
-  with_items:
-    - '{{docker_registry_conf_dir}}'
-    - '{{docker_registry_conf_dir}}/auth'
-    - '{{docker_registry_conf_dir}}/pki'
-  file:
-    state: directory
-    dest: '{{item}}'
-    mode: 0700
-    
-- name: add passwds to /etc/docker-registry/auth/registry.htpasswd
-  become: yes
-  become_user: root
-  with_items: '{{docker_registry_users}}'
-  htpasswd:
-    path: '{{docker_registry_conf_dir}}/auth/registry.htpasswd'
-    mode: 0600
-    name: '{{item.uid}}'
-    password: '{{item.pwd}}'
-    crypt_scheme: bcrypt
+- name: Configure daemon
+  script: "scripts/registry.py --registry {{ ansible_default_ipv4.address }}:{{ registry_port }}"
 
-- name: templatize...
-  become: yes
-  become_user: root
-  with_items:
-    - config.yml
-  template:
-    src: '{{item}}.j2'
-    dest: '{{docker_registry_conf_dir}}/{{item}}'
-    mode: '0644'
-  
-- name : launching registry container...
-  become: yes
-  become_user: root
-  when: docker_registry_activate
-  docker_container :
-    state: started
+- name: Restart docker
+  service:  
+    name: docker
+    state: restarted
+    
+- name: Create root directory
+  file:
+    patch: "{{ storage_root_directory }}"
+    state: directory
+
+- name: Create data directory
+  file:
+    patch: "{{ storage_root_directory }}/data"
+    state: directory
+
+- name: Post config
+  template: templates/config_http.yml.j2
+  dest: "{{ storage_root_directory }}/config_http.yml"
+
+- name: Start docker container
+  docker_container:
+    image: "{{ docker_registry_container }}"
     restart_policy: always
-    name: '{{docker_registry_container_name}}'
-    image: '{{docker_registry_container}}'
-    pull: true
-    published_ports:
-      - '{{docker_registry_https_port}}:5000'
-    volumes:
-      - '{{docker_registry_conf_dir}}/config.yml:/etc/docker/registry/config.yml:ro'
-      - '{{docker_registry_conf_dir}}/auth:/auth:ro'
-      - '{{docker_registry_conf_dir}}/pki:/pki:ro'
+    state: started
+    name: registry
+    volumes: 
+      - "{{ storage_root_directory }}/config_http.yml:/etc/docker/registry/config.yml"
+      - "{{ storage_root_directory }}/data:/var/lib/registry"
 

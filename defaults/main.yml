@@ -1,6 +1,10 @@
 ---
 docker_registry_https_port : 443
 docker_registry_conf_dir: /etc/docker-registry
+registry_port: 5000
+log_level: debug
+storage_root_directory: /usr/local/ericomshield/registry
+
 
 # for basic auth -- boo!
 docker_registry_users:
